@@ -95,16 +95,47 @@ function App() {
     }
   ]
 
-  const rebalanceSuggestion = {
-    current: { 
+  const calculateRebalanceSuggestion = () => {
+    const current = { 
       stocks: portfolioAllocations.find(a => a.name === 'Stocks')?.value || 60, 
       bonds: portfolioAllocations.find(a => a.name === 'Bonds')?.value || 25, 
       realEstate: portfolioAllocations.find(a => a.name === 'Real Estate')?.value || 10, 
       cash: portfolioAllocations.find(a => a.name === 'Cash')?.value || 5 
-    },
-    suggested: { stocks: 55, bonds: 30, realEstate: 10, cash: 5 },
-    reason: 'Market volatility suggests increasing bond allocation for better risk management'
+    }
+
+    let suggested = { stocks: 60, bonds: 25, realEstate: 10, cash: 5 }
+    let reason = 'Portfolio is well-balanced according to target allocation'
+
+    if (portfolioHoldings.length > 0) {
+      const stocksPercent = current.stocks
+      const totalHoldings = portfolioHoldings.length
+      
+      if (stocksPercent > 70) {
+        suggested = { stocks: 65, bonds: 25, realEstate: 7, cash: 3 }
+        reason = `High stock concentration (${stocksPercent.toFixed(1)}%) detected. Consider reducing equity exposure and increasing bonds for better risk management.`
+      }
+      else if (stocksPercent > 80) {
+        suggested = { stocks: 60, bonds: 30, realEstate: 7, cash: 3 }
+        reason = `Very high stock concentration (${stocksPercent.toFixed(1)}%) creates significant risk. Strongly recommend increasing bond allocation for portfolio stability.`
+      }
+      else if (stocksPercent < 40) {
+        suggested = { stocks: 55, bonds: 25, realEstate: 12, cash: 8 }
+        reason = `Low stock allocation (${stocksPercent.toFixed(1)}%) may limit growth potential. Consider increasing equity exposure for better long-term returns.`
+      }
+      else if (totalHoldings < 3) {
+        suggested = { stocks: current.stocks - 5, bonds: current.bonds + 3, realEstate: current.realEstate + 2, cash: current.cash }
+        reason = `Limited diversification with only ${totalHoldings} stock${totalHoldings === 1 ? '' : 's'}. Consider adding more positions or increasing other asset classes.`
+      }
+      else if (totalHoldings >= 3 && stocksPercent >= 40 && stocksPercent <= 70) {
+        suggested = current
+        reason = `Well-diversified portfolio with ${totalHoldings} holdings and ${stocksPercent.toFixed(1)}% stock allocation. Current allocation is optimal.`
+      }
+    }
+
+    return { current, suggested, reason }
   }
+
+  const rebalanceSuggestion = calculateRebalanceSuggestion()
 
   useEffect(() => {
     fetchMarketData()
