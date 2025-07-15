@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { TrendingUp, TrendingDown, MessageCircle, Send, CheckCircle, X, DollarSign, BarChart3, PieChart as PieChartIcon } from 'lucide-react'
+import { TrendingUp, TrendingDown, MessageCircle, Send, CheckCircle, X, DollarSign, BarChart3, PieChart as PieChartIcon, Plus } from 'lucide-react'
 import './App.css'
 
 interface MarketData {
@@ -45,6 +45,7 @@ function App() {
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
   const [rebalanceApproved, setRebalanceApproved] = useState<boolean | null>(null)
+  const [addedStocks, setAddedStocks] = useState<Set<string>>(new Set())
 
   const portfolioData = [
     { name: 'Stocks', value: 60, color: '#3b82f6' },
@@ -207,6 +208,10 @@ function App() {
     setRebalanceApproved(approved)
   }
 
+  const handleAddToPortfolio = (symbol: string) => {
+    setAddedStocks(prev => new Set([...prev, symbol]))
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm border-b">
@@ -366,10 +371,27 @@ function App() {
                         {stock.confidence}
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-700 mb-2">{stock.reason}</p>
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium">Target: ${stock.targetPrice}</span>
+                    <p className="text-sm text-gray-700 mb-3">{stock.reason}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium">Target: ${stock.targetPrice}</span>
+                      </div>
+                      {addedStocks.has(stock.symbol) ? (
+                        <Button disabled variant="outline" size="sm" className="text-green-600 border-green-600">
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Added
+                        </Button>
+                      ) : (
+                        <Button 
+                          onClick={() => handleAddToPortfolio(stock.symbol)}
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add to Portfolio
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
