@@ -31,6 +31,22 @@ interface StockSuggestion {
   confidence: 'High' | 'Medium' | 'Low'
 }
 
+interface PortfolioHolding {
+  symbol: string
+  name: string
+  quantity: number
+  purchasePrice: number
+  currentPrice: number
+  value: number
+}
+
+interface PortfolioAllocation {
+  name: string
+  value: number
+  color: string
+  holdings?: PortfolioHolding[]
+}
+
 function App() {
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,13 +62,14 @@ function App() {
   const [chatLoading, setChatLoading] = useState(false)
   const [rebalanceApproved, setRebalanceApproved] = useState<boolean | null>(null)
   const [addedStocks, setAddedStocks] = useState<Set<string>>(new Set())
-
-  const portfolioData = [
+  const [portfolioHoldings, setPortfolioHoldings] = useState<PortfolioHolding[]>([])
+  const [portfolioAllocations, setPortfolioAllocations] = useState<PortfolioAllocation[]>([
     { name: 'Stocks', value: 60, color: '#3b82f6' },
     { name: 'Bonds', value: 25, color: '#10b981' },
     { name: 'Real Estate', value: 10, color: '#f59e0b' },
     { name: 'Cash', value: 5, color: '#6b7280' }
-  ]
+  ])
+  const [selectedSegment, setSelectedSegment] = useState<string | null>(null)
 
   const stockSuggestions: StockSuggestion[] = [
     {
@@ -79,14 +96,101 @@ function App() {
   ]
 
   const rebalanceSuggestion = {
-    current: { stocks: 60, bonds: 25, realEstate: 10, cash: 5 },
+    current: { 
+      stocks: portfolioAllocations.find(a => a.name === 'Stocks')?.value || 60, 
+      bonds: portfolioAllocations.find(a => a.name === 'Bonds')?.value || 25, 
+      realEstate: portfolioAllocations.find(a => a.name === 'Real Estate')?.value || 10, 
+      cash: portfolioAllocations.find(a => a.name === 'Cash')?.value || 5 
+    },
     suggested: { stocks: 55, bonds: 30, realEstate: 10, cash: 5 },
     reason: 'Market volatility suggests increasing bond allocation for better risk management'
   }
 
   useEffect(() => {
     fetchMarketData()
+    
+    const saved = localStorage.getItem('portfolio-holdings')
+    if (saved) {
+      try {
+        const holdings = JSON.parse(saved)
+        setPortfolioHoldings(holdings)
+        const savedStocks = new Set<string>(holdings.map((h: PortfolioHolding) => h.symbol))
+        setAddedStocks(savedStocks)
+      } catch (error) {
+        console.error('Error loading portfolio from localStorage:', error)
+      }
+    }
   }, [])
+
+  useEffect(() => {
+    if (portfolioHoldings.length > 0) {
+      localStorage.setItem('portfolio-holdings', JSON.stringify(portfolioHoldings))
+      calculatePortfolioAllocations()
+    }
+  }, [portfolioHoldings])
+
+  const calculatePortfolioAllocations = () => {
+    const totalStockValue = portfolioHoldings.reduce((sum, holding) => sum + holding.value, 0)
+    const baseValue = 10000
+    const totalValue = totalStockValue + baseValue
+    
+    const stocksPercentage = totalValue > 0 ? (totalStockValue / totalValue) * 100 : 0
+    const remainingPercentage = 100 - stocksPercentage
+    
+    const allocations: PortfolioAllocation[] = [
+      { 
+        name: 'Stocks', 
+        value: Math.round(stocksPercentage * 100) / 100, 
+        color: '#3b82f6',
+        holdings: portfolioHoldings
+      },
+      { name: 'Bonds', value: Math.round((remainingPercentage * 0.6) * 100) / 100, color: '#10b981' },
+      { name: 'Real Estate', value: Math.round((remainingPercentage * 0.25) * 100) / 100, color: '#f59e0b' },
+      { name: 'Cash', value: Math.round((remainingPercentage * 0.15) * 100) / 100, color: '#6b7280' }
+    ]
+    
+    setPortfolioAllocations(allocations)
+  }
+
+  const fetchCurrentPrice = async (symbol: string): Promise<number> => {
+    const apiKey = import.meta.env.VITE_FINNHUB_API_KEY
+    
+    if (!apiKey || apiKey === 'your_finnhub_api_key_here') {
+      const mockPrices: { [key: string]: number } = {
+        'NVDA': 875.50,
+        'MSFT': 415.20,
+        'AMZN': 175.80,
+        'AAPL': 195.30,
+        'GOOGL': 142.60
+      }
+      return mockPrices[symbol] || 100
+    }
+
+    try {
+      const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`)
+      const data = await response.json()
+      return data.c || 100
+    } catch (error) {
+      console.error(`Error fetching price for ${symbol}:`, error)
+      return 100
+    }
+  }
+
+  const updatePortfolioValues = async () => {
+    if (portfolioHoldings.length === 0) return
+    
+    const updatedHoldings = await Promise.all(
+      portfolioHoldings.map(async (holding) => {
+        const currentPrice = await fetchCurrentPrice(holding.symbol)
+        return {
+          ...holding,
+          currentPrice,
+          value: holding.quantity * currentPrice
+        }
+      })
+    )
+    setPortfolioHoldings(updatedHoldings)
+  }
 
   const fetchMarketData = async () => {
     try {
@@ -118,6 +222,7 @@ function App() {
 
       const results = await Promise.all(promises)
       setMarketData(results)
+      updatePortfolioValues()
     } catch (error) {
       console.error('Error fetching market data:', error)
       setMarketData([
@@ -125,6 +230,7 @@ function App() {
         { symbol: '^IXIC', name: 'NASDAQ', price: 14845.73, change: -45.67, changePercent: -0.31 },
         { symbol: '^DJI', name: 'Dow Jones', price: 37863.80, change: 156.89, changePercent: 0.42 }
       ])
+      updatePortfolioValues()
     } finally {
       setLoading(false)
     }
@@ -208,8 +314,30 @@ function App() {
     setRebalanceApproved(approved)
   }
 
-  const handleAddToPortfolio = (symbol: string) => {
+  const handleAddToPortfolio = async (symbol: string) => {
+    if (addedStocks.has(symbol)) return
+    
+    const stock = stockSuggestions.find(s => s.symbol === symbol)
+    if (!stock) return
+    
+    const currentPrice = await fetchCurrentPrice(symbol)
+    const defaultQuantity = 10
+    
+    const newHolding: PortfolioHolding = {
+      symbol,
+      name: stock.name,
+      quantity: defaultQuantity,
+      purchasePrice: currentPrice,
+      currentPrice,
+      value: defaultQuantity * currentPrice
+    }
+    
+    setPortfolioHoldings(prev => [...prev, newHolding])
     setAddedStocks(prev => new Set([...prev, symbol]))
+  }
+
+  const handlePieClick = (data: any) => {
+    setSelectedSegment(data.name === selectedSegment ? null : data.name)
   }
 
   return (
@@ -323,16 +451,23 @@ function App() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={portfolioData}
+                      data={portfolioAllocations}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
                       outerRadius={100}
                       paddingAngle={5}
                       dataKey="value"
+                      onClick={handlePieClick}
+                      style={{ cursor: 'pointer' }}
                     >
-                      {portfolioData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {portfolioAllocations.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.color}
+                          stroke={selectedSegment === entry.name ? '#000' : 'none'}
+                          strokeWidth={selectedSegment === entry.name ? 2 : 0}
+                        />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => [`${value}%`, 'Allocation']} />
@@ -340,15 +475,65 @@ function App() {
                 </ResponsiveContainer>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-4">
-                {portfolioData.map((item) => (
-                  <div key={item.name} className="flex items-center gap-2">
+                {portfolioAllocations.map((item) => (
+                  <div 
+                    key={item.name} 
+                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${
+                      selectedSegment === item.name ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'
+                    }`}
+                    onClick={() => handlePieClick(item)}
+                  >
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                    <span className="text-sm text-gray-600">{item.name}: {item.value}%</span>
+                    <span className="text-sm text-gray-600">{item.name}: {item.value.toFixed(1)}%</span>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
+
+          {selectedSegment === 'Stocks' && portfolioHoldings.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChartIcon className="h-5 w-5" />
+                  Stock Holdings
+                </CardTitle>
+                <CardDescription>Your individual stock positions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {portfolioHoldings.map(holding => {
+                    const gainLoss = holding.currentPrice - holding.purchasePrice
+                    const gainLossPercent = (gainLoss / holding.purchasePrice) * 100
+                    const isPositive = gainLoss >= 0
+                    
+                    return (
+                      <div key={holding.symbol} className="flex justify-between items-center p-3 border rounded-lg">
+                        <div>
+                          <div className="font-medium">{holding.symbol}</div>
+                          <div className="text-sm text-gray-600">{holding.name}</div>
+                          <div className="text-sm text-gray-500">{holding.quantity} shares @ ${holding.purchasePrice.toFixed(2)}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium">${holding.value.toFixed(2)}</div>
+                          <div className="text-sm text-gray-600">${holding.currentPrice.toFixed(2)}/share</div>
+                          <div className={`text-sm font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                            {isPositive ? '+' : ''}${gainLoss.toFixed(2)} ({gainLossPercent.toFixed(2)}%)
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div className="pt-3 border-t">
+                    <div className="flex justify-between items-center font-medium">
+                      <span>Total Stock Value:</span>
+                      <span>${portfolioHoldings.reduce((sum, holding) => sum + holding.value, 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
