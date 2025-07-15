@@ -89,8 +89,8 @@ function App() {
 
   const fetchMarketData = async () => {
     try {
-      const symbols = ['^GSPC', '^IXIC', '^DJI']
-      const names = ['S&P 500', 'NASDAQ', 'Dow Jones']
+      const symbols = ['AAPL', 'MSFT', 'GOOGL']
+      const names = ['Apple Inc', 'Microsoft Corp', 'Alphabet Inc']
       const apiKey = import.meta.env.VITE_FINNHUB_API_KEY
 
       if (!apiKey || apiKey === 'your_finnhub_api_key_here') {
