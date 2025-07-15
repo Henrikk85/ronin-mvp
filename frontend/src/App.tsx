@@ -208,8 +208,57 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg
+                  width="120"
+                  height="32"
+                  viewBox="0 0 120 32"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-8 w-auto"
+                >
+                  <rect x="2" y="6" width="20" height="20" rx="3" fill="#3b82f6" />
+                  <rect x="6" y="10" width="12" height="12" rx="2" fill="white" />
+                  <circle cx="12" cy="16" r="3" fill="#3b82f6" />
+                  <text x="30" y="20" fontFamily="Arial, sans-serif" fontSize="18" fontWeight="bold" fill="#1f2937">
+                    RONIN
+                  </text>
+                </svg>
+              </div>
+            </div>
+            <div className="hidden md:block">
+              <div className="ml-10 flex items-baseline space-x-8">
+                <a href="#" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors">
+                  Dashboard
+                </a>
+                <a href="#" className="text-gray-600 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors">
+                  Portfolio
+                </a>
+                <a href="#" className="text-gray-600 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors">
+                  About Us
+                </a>
+                <a href="#" className="text-gray-600 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors">
+                  Contact
+                </a>
+              </div>
+            </div>
+            <div className="md:hidden">
+              <button className="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+      
+      <div className="max-w-7xl mx-auto p-4 space-y-6">
         <header className="text-center py-6">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Investment Dashboard</h1>
           <p className="text-gray-600">Real-time market data and AI-powered investment insights</p>
